@@ -40,19 +40,25 @@ position = 0
 
 sanitize()
 
+ser.flushInput()
+
 #START THE LOOPING DATA SENT
 while True:
-    if (ser.in_waiting>0):
-        data = ser.read()
-        data_left = ser.inWaiting()
-        print(data_left)
-        print(headlines[position])
-        ser.write(headlines[position])
-        time.sleep(5)
+    data = ser.out_waiting
+    print(data)
+    if (ser.out_waiting>0):
+        time.delay(2)
+    else:
+        if (ser.in_waiting>0):
+            data = ser.read()
+            print(headlines[position])
+            ser.write(headlines[position])
 
         #loop through the headlines to play all necessary
-        if (position < len(headlines)):
-            position += 1
-        else:
-            print('done')
-            break
+        #if (position < len(headlines)-1):
+            if (position < 2):
+                position += 1
+            else:
+                print('done')
+                #break
+            time.sleep(5)
