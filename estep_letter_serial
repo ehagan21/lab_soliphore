@@ -64,7 +64,9 @@ void loop(){
     receiveData();
 
     //display the message in semaphore
-    message(receivedChars);
+    if (newData){
+      message(receivedChars);
+    }
 }
 
 //SERIAL FUNCTION FOR PULLING IN CHARACTERS
@@ -173,4 +175,3 @@ void cautionwave(){
   nextLetterMove(-spr/8, spr/8);
   delay(20);
 }
-
