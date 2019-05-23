@@ -17,7 +17,7 @@ char receivedChars[numChars];
 boolean newData = false;
 
 //how long each letter is displayed
-int letterdelay = 500;
+const int letterdelay = 250;
 
 //an array which determines the letter positions, scaled to number of steps
 const int Letters[][3] = 
@@ -29,8 +29,7 @@ const int Letters[][3] =
 int nextL = 0;
 int nextR = 0; 
 
-void setup()
-{  
+void setup(){  
   //set left motor properties
   stepL.setMaxSpeed(10000.0);
   stepL.setAcceleration(4000.0);
@@ -93,8 +92,6 @@ void receiveData() {
                 recvInProgress = false;
                 ndx = 0;
                 newData = true;
-
-                Serial.println(receivedChars);
             }
         }
         else if (rc == startMarker) {
@@ -132,46 +129,47 @@ void message(char s[numChars]){
         //Serial.print(Letters[i][2]);
         letter(i);
         nextLetterMove(-nextL, -nextR);
+        delay(letterdelay);
       }
     }
   }
   
   //add a pause at the end of the message
-  letter(26);
-  nextLetterMove(-nextL, -nextR);
-  delay(letterdelay * 3);
-
-  cleanUp();
+  if (newData){
+    letter(26);
+    nextLetterMove(-nextL, -nextR);
+    delay(letterdelay * 2);
+    cleanUp();
+  }
 }
 
 void cleanUp(){
     for (int i = 0; i < numChars; i++){
       receivedChars[i] = 0;
     }
-    newData = false;
     Serial.println('A');
+    newData = false;
 }
 
 void establishContact() {
     while (Serial.available() <= 0) {
-      Serial.println("A");   // send an initial string
+      Serial.println("waiting");   // send an initial string
       delay(300);
     }
 }
-
-void alert(){
-  for (int i = 0; i < 3; i++){
-    cautionwave();
-  } 
-  nextLetterMove(0, 0);
-  delay(letterdelay);
-}
-
-void cautionwave(){
-  //run motion
-  nextLetterMove(-(spr * 3)/8, (spr*3)/8);
-  delay(20);
-  //run motion
-  nextLetterMove(-spr/8, spr/8);
-  delay(20);
-}
+//void alert(){
+//  for (int i = 0; i < 3; i++){
+//    cautionwave();
+//  } 
+//  nextLetterMove(0, 0);
+//  delay(letterdelay);
+//}
+//
+//void cautionwave(){
+//  //run motion
+//  nextLetterMove(-(spr * 3)/8, (spr*3)/8);
+//  delay(20);
+//  //run motion
+//  nextLetterMove(-spr/8, spr/8);
+//  delay(20);
+//}
