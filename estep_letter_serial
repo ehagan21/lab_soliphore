@@ -121,6 +121,7 @@ void nextLetterMove(int l, int k){
 }
 
 void message(char s[numChars]){
+  
   //for each letter in the message
   for (int j = 0; j < numChars; j++){
     for (int i = 0; i < 27; i++){
@@ -144,10 +145,10 @@ void message(char s[numChars]){
 }
 
 void cleanUp(){
+    Serial.println(receivedChars);
     for (int i = 0; i < numChars; i++){
       receivedChars[i] = 0;
     }
-    Serial.println('A');
     newData = false;
 }
 
