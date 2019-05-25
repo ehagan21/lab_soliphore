@@ -41,7 +41,12 @@ void setup(){
   stepR.setSpeed(10000.0);
 
   //move to zero, should be here already
-  //this will be replaced with calibration (photocell?)
+  //this will be replaced with calibration (photocell or hall effect)
+  /* NOTE
+   *  setCurrentPosition also sets current motor speed to 0
+   *  
+   *  calibration();
+   */
   stepL.moveTo(0);
   stepR.moveTo(0);
 
@@ -121,7 +126,6 @@ void nextLetterMove(int l, int k){
 }
 
 void message(char s[numChars]){
-  
   //for each letter in the message
   for (int j = 0; j < numChars; j++){
     for (int i = 0; i < 27; i++){
@@ -147,7 +151,7 @@ void message(char s[numChars]){
 void cleanUp(){
     Serial.println(receivedChars);
     for (int i = 0; i < numChars; i++){
-      receivedChars[i] = 0;
+      receivedChars[i] = '\0';
     }
     newData = false;
 }
@@ -155,9 +159,31 @@ void cleanUp(){
 void establishContact() {
     while (Serial.available() <= 0) {
       Serial.println("waiting");   // send an initial string
-      delay(300);
+      delay(10);
     }
 }
+
+/*void calibration(){
+  //while the sensor value is above threshold, keep moving motor
+  while (sensorL > threshold){
+    stepL.run();
+    sensorL = analogRead(sLpin);
+  }
+
+  //with the sensor value at its lowest, set the current positon to zero
+  stepL.setCurrentPosition();
+
+  //while the sensor value is above threshold, keep moving motor
+  while (sensorR > threshold){
+    stepR.run();
+    sensorR = analogRead(sRpin);
+  }
+
+  //with the sensor value at its lowest, set the current positon to zero
+  stepR.setCurrentPosition();
+
+}
+*/
 //void alert(){
 //  for (int i = 0; i < 3; i++){
 //    cautionwave();
