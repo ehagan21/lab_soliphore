@@ -6,7 +6,8 @@ currentPage = 0
 
 #def text_extractor(path):
     #with open(path, 'rb') as f:
-pdf = PdfFileReader("mreport.pdf", 'rb')
+pdf = PdfFileReader("con.pdf", 'rb')
+#pdf = PdfFileReader("mreport.pdf", 'rb')
 
 def runPage(currentPage):
     #get the page
