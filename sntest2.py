@@ -13,7 +13,7 @@ with open('/home/pi/lab/config.json') as json_data_file:
 #serial port information
 port = "/dev/ttyACM0"
 rate = 115200
-ser = serial.Serial(port,rate, timeout = 0)
+ser = serial.Serial(port,rate, timeout = 1)
 headlines = []
 
 #Init
