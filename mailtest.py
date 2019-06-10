@@ -38,7 +38,7 @@ def read_email_from_gmail():
                     if msg.is_multipart():
                         for part in msg.get_payload():
                             if part.get_content_type() == "text/plain":
-                                bodytext.append(part.get_payload().encode('UTF-8'))
+                                bodytext.append(msg['subject'] + ' ' + part.get_payload().encode('UTF-8'))
                     else:
                         bodytext.append(msg.get_payload())
                     email_subject = msg['subject']
