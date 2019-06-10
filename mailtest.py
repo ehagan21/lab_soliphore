@@ -29,7 +29,7 @@ def read_email_from_gmail():
         first_email_id = int(id_list[0])
         latest_email_id = int(id_list[-1])
 
-        for i in range(latest_email_id,first_email_id, -1):
+        for i in range(latest_email_id, first_email_id, -1):
             typ, data = mail.fetch(i, '(RFC822)' )
 
             for response_part in data:
@@ -40,13 +40,14 @@ def read_email_from_gmail():
                             if part.get_content_type() == "text/plain":
                                 bodytext.append(msg['subject'] + ' ' + part.get_payload().encode('UTF-8'))
                     else:
-                        bodytext.append(msg.get_payload())
+                        bodytext.append(msg['subject']+ ' '+ msg.get_payload().encode('UTF-8'))
                     email_subject = msg['subject']
                     email_from = msg['from']
                     #print 'From : ' + email_from + '\n'
                     #print 'Subject : ' + email_subject + '\n'
                     #print msg
 
+        print len(bodytext)
         print bodytext
 
     except Exception, e:
