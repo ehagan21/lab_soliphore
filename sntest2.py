@@ -5,6 +5,7 @@ import json
 import re
 import atexit
 from newsapi import NewsApiClient
+from PyPDF2 import PdfFileReader
 
 #loading credentials
 with open('/home/pi/lab/config.json') as json_data_file:
@@ -19,12 +20,20 @@ headlines = []
 #Init
 news_key = data["api_key"]
 newsapi = NewsApiClient(api_key=news_key)
+file = data["pdf1"]
 
 top_headlines = newsapi.get_top_headlines(language='en', country ='us')
 #all_articles = newsapi.get_everything(q='flag', language = 'en', sort_by='relevancy')
 
 #tracking where in the headlines array to send data
 position = 0
+
+#tracking which page of the pdf the system is interpreting
+currentPage = 0
+
+#this should occur inside a function, trying to figure out scope
+pdf = PdfFileReader(file , 'rb')
+
 
 def sanitize():
     for item in top_headlines["articles"]:
