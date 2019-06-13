@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 import sys
+import re
 from PyPDF2 import PdfFileReader
 
 #load file
@@ -9,25 +10,33 @@ filename = sys.argv[1]
 startChar = sys.argv[2]
 endChar = sys.argv[3]
 
-pdf = PDFFileReader(filename, 'rb')
+pdf = PdfFileReader(filename, 'rb')
 
 allText = []
+
+currentPage = 0
 
 def runPage(currentPage):
     page = pdf.getPage(currentPage)
 
     text = page.extractText().encode('UTF-8')
 
-    #split by line here?
+    allLines = text.splitlines()
 
-    cleanText = startChar + re.sub("[^a-zA-Z ]+","",text).upper() + endChar
-
-    #append to array
-    allText.append(cleanText)
+    for line in allLines:
+        cleanText = startChar + re.sub("[^a-zA-Z ]+"," ",line).upper() + endChar + '\n'
+        #append to array
+        allText.append(cleanText)
 
 def writeText():
-	#write everything to a single text file
-	#same name as the loaded pdf
+    #write everything to a single text file
+    #same name as the loaded pdf
+    name = filename.strip('pdf') + 'txt'
+    f = open(name, 'w')
+
+    for line in allText:
+        f.write(line)
+    f.close()
 
 while (pdf.numPages > currentPage):
     runPage(currentPage)
