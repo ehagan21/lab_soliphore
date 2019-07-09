@@ -23,8 +23,16 @@ newsapi = NewsApiClient(api_key=news_key)
 top_headlines = newsapi.get_top_headlines(language='en', country ='us')
 #all_articles = newsapi.get_everything(q='flag', language = 'en', sort_by='relevancy')
 
-#tracking where in the headlines array to send data
+#positions in the array loops
+tPosition = 0
 position = 0
+
+#load text file into python, save text in a list to be sent to raspberry pi
+def fileload(filename):
+    text_file = open(filename, "r")
+    lines = text_file.read().splitlines()
+    text_file.close()
+    return lines
 
 def sanitize():
     for item in top_headlines["articles"]:
@@ -48,6 +56,8 @@ if (ser.in_waiting>0):
     if (inData == 'waiting'):
        ser.write('A')
 
+twitter = fileload(data["twitterRuling"])
+
 #START THE LOOPING DATA SENT
 try:
     while True:
@@ -58,11 +68,17 @@ try:
             if (data == 'waiting'):
                 ser.write('A')
             else:
-                print(data)
-                ser.write(headlines[position])
+                #print(data) 
+                #ser.write(headlines[position])
+                ser.write(twitter[tPosition])
+                print (twitter[tPosition])
 
-        #loop through the headlines to play all necessary
-            if (position < len(headlines)-1):
+            if (tPosition < len(twitter)-1):
+                tPosition += 1
+            else:
+                tPosition = 0
+
+	    if (position < len(headlines)-1):
                 position += 1
             else:
                 position = 0
