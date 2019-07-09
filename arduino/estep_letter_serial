@@ -1,0 +1,202 @@
+#include <AccelStepper.h>
+#define HALFSTEP 8
+
+// Define two steppers and the pins they will use
+AccelStepper stepL(AccelStepper::DRIVER, 3, 2);
+AccelStepper stepR(AccelStepper::DRIVER, 5, 4);
+
+//number of steps per rotation
+const int spr = 4096;
+
+//number of characters in string
+const byte numChars = 128;
+
+//pulled from serial data
+char receivedChars[numChars];
+
+boolean newData = false;
+
+//how long each letter is displayed
+const int letterdelay = 250;
+
+//an array which determines the letter positions, scaled to number of steps
+const int Letters[][3] = 
+{{spr/8, 0, 'A'}, {spr/4, 0, 'B'}, {(spr * 3)/8, 0, 'C'}, {spr/2, 0, 'D'}, {0, (spr * 5)/8, 'E'}, {0, (spr * 3)/4, 'F'}, {0, (spr * 7)/8, 'G'}, {spr/4,spr/8, 'H'}, {(spr * 3)/8, spr/8, 'I'}, {spr/2, (spr * 3)/4, 'J'}, //ABCDEFGHIJ 
+{spr/8, spr/2, 'K'}, {spr/8, (spr * 5)/8, 'L'}, {spr/8, (spr * 3)/4, 'M'}, {spr/8, (spr * 7)/8, 'N'}, {spr/4, (spr * 3)/8, 'O'}, {spr/4, spr/2, 'P'}, {spr/4, (spr * 5)/8, 'Q'}, {spr/4 , (spr * 3)/4, 'R'}, {spr/4, (spr * 7)/8, 'S'}, //KLMNOPQRS
+{(spr * 3)/8, spr/2, 'T'}, {(spr * 3)/8, (spr * 5)/8, 'U'}, {spr/2, (spr * 7)/8, 'V'}, {(spr * 5)/8, (spr * 3)/4, 'W'}, {(spr * 5)/8, (spr*7)/8, 'X'}, {(spr *3)/8, (spr * 3)/4, 'Y'}, {(spr * 7)/8, (spr * 3)/4, 'Z'}, {0, 0, ' '}};
+
+//keep track of which letter positons should be implemented
+int nextL = 0;
+int nextR = 0; 
+
+void setup(){  
+  //set left motor properties
+  stepL.setMaxSpeed(10000.0);
+  stepL.setAcceleration(4000.0);
+  stepL.setSpeed(10000.0);
+
+  //set right motor properties
+  stepR.setMaxSpeed(10000.0);
+  stepR.setAcceleration(4000.0);
+  stepR.setSpeed(10000.0);
+
+  //move to zero, should be here already
+  //this will be replaced with calibration (photocell or hall effect)
+  /* NOTE
+   *  setCurrentPosition also sets current motor speed to 0
+   *  
+   *  calibration();
+   */
+  stepL.moveTo(0);
+  stepR.moveTo(0);
+
+  //start serial
+  Serial.begin(115200);
+
+  //check that the serial is connected
+  establishContact();
+}
+
+/*******************************************************************************************
+ * 
+ * TO DO 
+ *   PHOTOCELL SENSOR CALIBRATION PER MOTOR TO SET A ZERO POINT
+
+********************************************************************************************/
+void loop(){
+    //load the data from serial
+    receiveData();
+
+    //display the message in semaphore
+    if (newData){
+      message(receivedChars);
+    }
+}
+
+//SERIAL FUNCTION FOR PULLING IN CHARACTERS
+void receiveData() {
+    static boolean recvInProgress = false;
+    static byte ndx = 0;
+    char startMarker = '<';
+    char endMarker = '>';
+    char rc;
+ 
+    while (Serial.available() > 0 && newData == false) {
+        rc = Serial.read();
+
+        if (recvInProgress == true) {
+            if (rc != endMarker) {
+                receivedChars[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+                receivedChars[ndx] = '\0'; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+            }
+        }
+        else if (rc == startMarker) {
+            recvInProgress = true;
+        }
+    }
+}
+
+void letter(int i){
+  //grab the next rotation position from the array
+  int l = Letters[i][0];
+  int r = Letters[i][1];
+
+  nextL = l;
+  nextR = r;
+}
+
+void nextLetterMove(int l, int k){
+  stepL.moveTo(l);
+  stepR.moveTo(k);
+
+  //if the motor is not there yet, keep the motor moving
+  while((stepL.distanceToGo() != 0) || (stepR.distanceToGo() != 0)){
+      stepL.run();
+      stepR.run();  
+  }
+}
+
+void message(char s[numChars]){
+  //for each letter in the message
+  for (int j = 0; j < numChars; j++){
+    for (int i = 0; i < 27; i++){
+      //check which letter it is
+      if (Letters[i][2] == s[j]){
+        //Serial.print(Letters[i][2]);
+        letter(i);
+        nextLetterMove(-nextL, -nextR);
+        delay(letterdelay);
+      }
+    }
+  }
+  
+  //add a pause at the end of the message
+  if (newData){
+    letter(26);
+    nextLetterMove(-nextL, -nextR);
+    delay(letterdelay * 2);
+    cleanUp();
+  }
+}
+
+void cleanUp(){
+    Serial.println(receivedChars);
+    for (int i = 0; i < numChars; i++){
+      receivedChars[i] = '\0';
+    }
+    newData = false;
+}
+
+void establishContact() {
+    while (Serial.available() <= 0) {
+      Serial.println("waiting");   // send an initial string
+      delay(10);
+    }
+}
+
+/*void calibration(){
+  //while the sensor value is above threshold, keep moving motor
+  while (sensorL > threshold){
+    stepL.run();
+    sensorL = analogRead(sLpin);
+  }
+
+  //with the sensor value at its lowest, set the current positon to zero
+  stepL.setCurrentPosition();
+
+  //while the sensor value is above threshold, keep moving motor
+  while (sensorR > threshold){
+    stepR.run();
+    sensorR = analogRead(sRpin);
+  }
+
+  //with the sensor value at its lowest, set the current positon to zero
+  stepR.setCurrentPosition();
+
+}
+*/
+//void alert(){
+//  for (int i = 0; i < 3; i++){
+//    cautionwave();
+//  } 
+//  nextLetterMove(0, 0);
+//  delay(letterdelay);
+//}
+//
+//void cautionwave(){
+//  //run motion
+//  nextLetterMove(-(spr * 3)/8, (spr*3)/8);
+//  delay(20);
+//  //run motion
+//  nextLetterMove(-spr/8, spr/8);
+//  delay(20);
+//}
