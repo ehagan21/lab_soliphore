@@ -5,7 +5,6 @@ import json
 import re
 import atexit
 from newsapi import NewsApiClient
-from PyPDF2 import PdfFileReader
 
 #loading credentials
 with open('/home/pi/lab/config.json') as json_data_file:
@@ -20,7 +19,6 @@ headlines = []
 #Init
 news_key = data["api_key"]
 newsapi = NewsApiClient(api_key=news_key)
-file = data["con"]
 
 top_headlines = newsapi.get_top_headlines(language='en', country ='us')
 #all_articles = newsapi.get_everything(q='flag', language = 'en', sort_by='relevancy')
@@ -28,30 +26,15 @@ top_headlines = newsapi.get_top_headlines(language='en', country ='us')
 #tracking where in the headlines array to send data
 position = 0
 
-#tracking which page of the pdf the system is interpreting
-currentPage = 0
-
-#this should occur inside a function, trying to figure out scope
-pdf = PdfFileReader(file , 'rb')
-
 def sanitize():
     for item in top_headlines["articles"]:
         xstring = item["title"].encode('utf-8')
         hlist = re.sub("[^a-zA-Z ]+", "", xstring)
+
+        #keep in mind this is the start and end character, determine which pair the message goes to
         message = '<' + hlist.upper() + '>'
         headlines.append(message)
         print(message)
-
-def runPage(currentPage):
-    #scope question here as well
-    page = pdf.getPage(currentPage)
-
-    #encode the page and extract the text
-    text = page.extractText().encode('utf-8')
-
-    #save the text after adding new start and end character and using regex to remove all non alpha, convert to uppercase
-    cleanText = '!' + re.sub("[^a-zA-Z ]+","",text).upper() + '?'
-    print(cleanText)
 
 def exit_handler():
     print("closing application")
@@ -59,12 +42,6 @@ def exit_handler():
     ser.close()
 
 sanitize()
-
-#move this, just testing
-while (pdf.numPages > currentPage):
-    runPage(currentPage)
-    currentPage += 1
-    time.sleep(2)
 
 if (ser.in_waiting>0):
     inData = ser.readline()

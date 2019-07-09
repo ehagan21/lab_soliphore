@@ -7,4 +7,6 @@ Central python code deals with importing text, sending serial messages to Arduin
 Arduino code: Serial communication to accept the messages from Raspberry Pi
 AccelStepper library to send the individual letters to the stepper motor pairs
 
+Uses the News API available at newsapi.org
+
 
