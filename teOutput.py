@@ -2,7 +2,7 @@
 import sys
 import re
 from PyPDF2 import PdfFileReader
-
+import textwrap
 #load file
 filename = sys.argv[1]
 
@@ -24,9 +24,16 @@ def runPage(currentPage):
     allLines = text.splitlines()
 
     for line in allLines:
-        cleanText = startChar + re.sub("[^a-zA-Z ]+"," ",line).upper() + endChar + '\n'
-        #append to array
-        allText.append(cleanText)
+        cleanText = re.sub("[^a-zA-Z ]+"," ",line).upper()
+	wrapper = textwrap.TextWrapper(width=256)
+        #wraps the text to be 256 characters long
+        shortTexts = wrapper.wrap(text=cleanText)
+
+        #add start and end characters to text
+        for element in shortTexts:
+            added = startChar + element + endChar
+            #append to array
+            allText.append(added)
 
 def writeText():
     #write everything to a single text file
@@ -35,7 +42,7 @@ def writeText():
     f = open(name, 'w')
 
     for line in allText:
-        f.write(line)
+        f.write(line+ '\n')
     f.close()
 
 while (pdf.numPages > currentPage):
