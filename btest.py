@@ -23,10 +23,6 @@ newsapi = NewsApiClient(api_key=news_key)
 top_headlines = newsapi.get_top_headlines(language='en', country ='us')
 #all_articles = newsapi.get_everything(q='flag', language = 'en', sort_by='relevancy')
 
-#positions in the array loops
-tPosition = 0
-position = 0
-
 #load text file into python, save text in a list to be sent to raspberry pi
 def fileload(filename):
     text_file = open(filename, "r")
@@ -42,7 +38,7 @@ def sanitize():
         #keep in mind this is the start and end character, determine which pair the message goes to
         message = '<' + hlist.upper() + '>'
         headlines.append(message)
-        print(message)
+        #print(message)
 
 def exit_handler():
     print("closing application")
@@ -56,37 +52,69 @@ if (ser.in_waiting>0):
     if (inData == 'waiting'):
        ser.write('A')
 
+#loading text files, remember to check start and end characters for documents
 twitter = fileload(data["twitterRuling"])
+con = fileload(data["con"])
+mReport = fileload(data["mreport"])
+
+#function to advance lists, not working
+def advance(aPos, length):
+    print aPos, length
+    if (aPos) <  length:
+        aPos = aPos + 1
+    else:
+        aPos = 0
+
+p = 0
+tP = 0
+cP = 0
+mP = 0
 
 #START THE LOOPING DATA SENT
 try:
     while True:
         if (ser.out_waiting>0):
+            #how long to delay for asynchronous?
             time.sleep(2)
         elif (ser.in_waiting>0):
             data = ser.readline()
             if (data == 'waiting'):
                 ser.write('A')
             else:
-                #print(data) 
-                #ser.write(headlines[position])
-                ser.write(twitter[tPosition])
-                print (twitter[tPosition])
+                #ser.write(headlines[p])
+                print(headlines[p])
+                print(con[cP])
+                print(twitter[tP])
+                print(mReport[mP])
+                time.sleep(2)
+                #ser.write(twitter[tP])
+                #print (twitter[tPosition])
 
-            if (tPosition < len(twitter)-1):
-                tPosition += 1
-            else:
-                tPosition = 0
+                if (tP < len(twitter)-1):
+                     tP += 1
+                else:
+                     tP = 0
 
-	    if (position < len(headlines)-1):
-                position += 1
-            else:
-                position = 0
-                #break
+	        if (p < len(headlines)-1):
+                    p += 1
+                else:
+                    p = 0
+
+                if (cP < len(con)-1):
+                    cP += 1
+                else:
+                    cP = 0
+
+                if (mP < len(mReport)-1):
+                    mP += 1
+                else:
+                    mP = 0
 
 except KeyboardInterrupt:
     #cleanup
+    print('keyboard close')
     exit_handler()
 
-except:
+except Exception as e:
+    print (e)
     exit_handler()

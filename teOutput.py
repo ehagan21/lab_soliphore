@@ -1,8 +1,19 @@
+###############################################
+# This file is used to transform PDFs into text files
+# formatted correctly for the flag semaphore modules
+# which require a start and end character
+# When calling this python script, it has three parameters
+# the pdf file name, it will output the same name as a txt
+# the desired start character, and the desired end character
+# these should match what is used on the arduino for differentiating between
+# different modules
+
 #! /usr/bin/env python
 import sys
 import re
 from PyPDF2 import PdfFileReader
 import textwrap
+
 #load file
 filename = sys.argv[1]
 
@@ -25,7 +36,8 @@ def runPage(currentPage):
 
     for line in allLines:
         cleanText = re.sub("[^a-zA-Z ]+"," ",line).upper()
-	wrapper = textwrap.TextWrapper(width=256)
+	wrapper = textwrap.TextWrapper(width=255)
+        
         #wraps the text to be 256 characters long
         shortTexts = wrapper.wrap(text=cleanText)
 
@@ -36,8 +48,7 @@ def runPage(currentPage):
             allText.append(added)
 
 def writeText():
-    #write everything to a single text file
-    #same name as the loaded pdf
+    #write everything to text file
     name = filename.strip('pdf') + 'txt'
     f = open(name, 'w')
 
