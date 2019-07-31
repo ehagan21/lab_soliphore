@@ -1,0 +1,134 @@
+/***********************************************************************
+For permanent semaphore message encoding on a single Arduino
+
+By changing the string passed through message (at the current limit 255 characters) you can change 
+what text is being displayed on the semaphore device.
+***********************************************************************/
+#include <AccelStepper.h>
+#define HALFSTEP 8
+
+const int hallSensors[]= {8, 12};
+
+// Define two steppers and the pins they will use
+AccelStepper *stepL1 = new AccelStepper(AccelStepper::DRIVER, 6, 7);
+AccelStepper *stepR1 = new AccelStepper(AccelStepper::DRIVER, 3, 2);
+
+//number of steps per rotation
+const int spr = 4096;
+
+//number of characters in string,maybe 128?
+const byte numChars = 255;
+
+//pulled from serial data
+char receivedChars[numChars] = "LABORATORYS MISSION IS TO PROVIDE PRACTICING INTERACTIVE ARTISTS WITH THE TIME SPACE AND FREEDOM TO MAKE AWESOME STUFF  SO WE WANT TO OFFER YOU SPACE TO LIVE SPACE TO WORK TOOLS MENTORSHIP AND CONNECTIONS TO MAKE THAT HAPPEN";
+//char receivedChars[numChars] = "AND A BANANA  ";
+
+//how long each letter is displayed
+const int letterdelay = 500;
+
+//an array which determines the letter positions, scaled to number of step
+const int Letters[][3] = 
+{{spr/8, 0, 'A'}, {spr/4, 0, 'B'}, {(spr * 3)/8, 0, 'C'}, {spr/2, 0, 'D'}, {0, (spr * 5)/8, 'E'}, {0, (spr * 3)/4, 'F'}, {0, (spr * 7)/8, 'G'}, {spr/4,spr/8, 'H'}, {(spr * 3)/8, spr/8, 'I'}, {spr/2, (spr * 3)/4, 'J'}, //ABCDEFGHIJ 
+{spr/8, spr/2, 'K'}, {spr/8, (spr * 5)/8, 'L'}, {spr/8, (spr * 3)/4, 'M'}, {spr/8, (spr * 7)/8, 'N'}, {spr/4, (spr * 3)/8, 'O'}, {spr/4, spr/2, 'P'}, {spr/4, (spr * 5)/8, 'Q'}, {spr/4 , (spr * 3)/4, 'R'}, {spr/4, (spr * 7)/8, 'S'}, //KLMNOPQRS
+{(spr * 3)/8, spr/2, 'T'}, {(spr * 3)/8, (spr * 5)/8, 'U'}, {spr/2, (spr * 7)/8, 'V'}, {(spr * 5)/8, (spr * 3)/4, 'W'}, {(spr * 5)/8, (spr*7)/8, 'X'}, {(spr *3)/8, (spr * 3)/4, 'Y'}, {(spr * 7)/8, (spr * 3)/4, 'Z'}, {0, 0, ' '}};
+
+//keep track of which letter positons should be implemented
+//this shouldn't be global, local to each motor
+int nextL = 0;
+int nextR = 0; 
+
+int x = 0;
+
+void setup(){
+  //set hall effect sensors to INPUT
+  for (int i = 0; i < sizeof(hallSensors); i++){
+       pinMode(hallSensors[i], INPUT);
+   }
+
+  //set speed and accel for all motors, zero motors
+  setupMotors();
+  calibrateAll();
+
+  Serial.begin(115200);
+}
+
+void loop(){
+    //run the message X times, then recalibrate the motors  
+    if (x < 10){
+      message(receivedChars);
+      x++;
+    }
+    else{
+      calibrateAll();
+      x = 0;
+    }
+}
+
+//message should just recall what characters are needed
+void message(char s[numChars]){
+  //for each letter in the message
+  for (int j = 0; j < numChars; j++){
+    for (int i = 0; i < 27; i++){
+      //check which letter it is
+      if (Letters[i][2] == s[j]){
+        letter(i);
+        nextLetterMove(-nextL, -nextR);
+        delay(letterdelay);
+      }
+    }
+  }
+}
+
+//this should be a sub_function of the movement
+void letter(int i){
+  //grab the next rotation position from the array
+  int l = Letters[i][0];
+  int r = Letters[i][1];
+
+  nextL = l;
+  nextR = r;
+}
+
+void nextLetterMove(int l, int k){
+  stepL1->moveTo(l);
+  stepR1->moveTo(k);
+
+  while((stepL1->distanceToGo() != 0) || (stepR1->distanceToGo() != 0)){
+      stepL1->run();
+      stepR1->run();  
+  }
+}
+
+void calibrateAll(){
+  calibration(stepL1, hallSensors[0]);
+  calibration(stepR1, hallSensors[1]);
+  setupMotors();
+}
+
+void calibration(AccelStepper *motor, int hall){
+  int sensorReading;
+  sensorReading = digitalRead(hall);
+
+  while(true){
+     sensorReading = digitalRead(hall);
+     
+     Serial.println(sensorReading);
+     
+     if (sensorReading == 0){
+      break;
+     }
+     motor->runToNewPosition(motor->currentPosition()+10);
+  }
+  motor->setCurrentPosition(0);
+  Serial.println("Calibrated!");
+}
+
+void setupMotors(){
+  stepL1->setMaxSpeed(4000.0);
+  stepL1->setAcceleration(4000.0);
+  stepL1->setSpeed(4000.0);
+
+  stepR1->setMaxSpeed(4000.0);
+  stepR1->setAcceleration(4000.0);
+  stepR1->setSpeed(4000.0);
+}
