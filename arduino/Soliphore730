@@ -1,0 +1,421 @@
+#include <AccelStepper.h>
+#define HALFSTEP 8
+
+/*********************************************************************
+STEPPER MOTOR CODE: This includes creating the stepper object and 
+assigning hall effect sensors (ny position in the array) 
+*********************************************************************/
+
+//all of the calibration hall effect sensor locations
+const int hallSensors[]= {53, 52, 51, 50, 23, 22, 33, 32, 31, 30};
+
+//
+const int speedy = 4000;
+const int accely = 4000;
+
+// Define two steppers and the pins they will use, as a pointer
+AccelStepper *stepL1 = new AccelStepper(AccelStepper::DRIVER, 7, 48);
+AccelStepper *stepR1 = new AccelStepper(AccelStepper::DRIVER, 9, 49);
+
+AccelStepper *stepL2 = new AccelStepper(AccelStepper::DRIVER, 5, 35);
+AccelStepper *stepR2 = new AccelStepper(AccelStepper::DRIVER, 4, 34);
+
+AccelStepper *stepL3 = new AccelStepper(AccelStepper::DRIVER, 8, 25);
+AccelStepper *stepR3 = new AccelStepper(AccelStepper::DRIVER, 2, 24);
+
+AccelStepper *stepL4 = new AccelStepper(AccelStepper::DRIVER, 11, 43);
+AccelStepper *stepR4 = new AccelStepper(AccelStepper::DRIVER, 10, 42);
+
+AccelStepper *stepL5 = new AccelStepper(AccelStepper::DRIVER, 3, 41);
+AccelStepper *stepR5 = new AccelStepper(AccelStepper::DRIVER, 12, 38);
+
+//number of steps per rotation
+const int spr = 4096;
+
+/*********************************************************************************
+LETTER AND INFORMATION CODE: This includes creating the array of letter positions,
+a set of character arrays for storing the messages that come in from serial, 
+an array for figuring out which start and end characters, and a 2D array which holds
+all upcoming absolute motor positions (left and right) based on the full char string
+**********************************************************************************/
+boolean newData = false;
+
+//how long each letter is displayed
+const int letterLength = 5000;
+
+//an array which determines the letter positions, scaled to number of steps
+const int Letters[][3] = 
+{{spr/8, 0, 'A'}, {spr/4, 0, 'B'}, {(spr * 3)/8, 0, 'C'}, {spr/2, 0, 'D'}, {0, (spr * 5)/8, 'E'}, {0, (spr * 3)/4, 'F'}, {0, (spr * 7)/8, 'G'}, {spr/4,spr/8, 'H'}, {(spr * 3)/8, spr/8, 'I'}, {spr/2, (spr * 3)/4, 'J'}, //ABCDEFGHIJ 
+{spr/8, spr/2, 'K'}, {spr/8, (spr * 5)/8, 'L'}, {spr/8, (spr * 3)/4, 'M'}, {spr/8, (spr * 7)/8, 'N'}, {spr/4, (spr * 3)/8, 'O'}, {spr/4, spr/2, 'P'}, {spr/4, (spr * 5)/8, 'Q'}, {spr/4 , (spr * 3)/4, 'R'}, {spr/4, (spr * 7)/8, 'S'}, //KLMNOPQRS
+{(spr * 3)/8, spr/2, 'T'}, {(spr * 3)/8, (spr * 5)/8, 'U'}, {spr/2, (spr * 7)/8, 'V'}, {(spr * 5)/8, (spr * 3)/4, 'W'}, {(spr * 5)/8, (spr*7)/8, 'X'}, {(spr *3)/8, (spr * 3)/4, 'Y'}, {(spr * 7)/8, (spr * 3)/4, 'Z'}, {0, 0, ' '}};
+
+const int numChars = 50;
+
+//pulled from serial data for each machine
+char receivedChars[numChars];
+char receivedChars2[numChars];
+char receivedChars3[numChars];
+char receivedChars4[numChars];
+char receivedChars5[numChars];
+
+//which start and end characters
+const char symbols[5][3] = {
+  {'a', '<', '>'},
+  {'b', '!', '?'},
+  {'c', '(', ')'},
+  {'d', '[', ']'},
+  {'e', '{', '}'}
+};
+
+//which letter positions to perform
+int semaphore[5][100];
+
+long timer = millis();
+
+void setup(){
+  //set hall effect sensors to INPUT
+  for (int i = 0; i < sizeof(hallSensors); i++){
+       pinMode(hallSensors[i], INPUT);
+  }
+
+  Serial.begin(115200);
+
+  //set speed and accel for all motors
+  setupMotors();
+
+  Serial.print("calibrating....");
+  calibrateAll();
+  Serial.println("done");
+  //check that the serial is connected
+  establishContact();
+  Serial.println("connected");
+  Serial.println("NEXT");
+}
+
+void loop(){  
+    //load the data from serial
+    Serial.println("NEXT");
+    receiveData();
+    delay(10); 
+
+    if (newData){
+      message(0, receivedChars);
+      message(1, receivedChars2);
+      message(2, receivedChars3);
+      message(3, receivedChars4);
+      message(4, receivedChars5);
+      for (int i = 0; i < numChars; i++){
+        nextLetterDestination(i); 
+      }
+
+      clearCharacters();    
+      newData = false;
+    }
+}
+
+void message(int num, char s[numChars]){
+  //Serial.println(s);
+  int pair = num;
+  
+  for (int j = 0; j < numChars; j++){
+    for (int i = 0; i < 27; i++){
+        if (Letters[i][2] == s[j]){
+          letter(pair,j, i);
+      }
+    }
+  }
+}
+
+void letter(int pair, int wordPlace ,int i){
+  int letSelect = 2 * wordPlace;
+  
+  //save the rotation values of the letter into the array
+  semaphore[pair][letSelect]= Letters[i][0];
+  semaphore[pair][(letSelect + 1)] = Letters[i][1];
+}
+
+//sets the move positions, then runs and holds the program
+void nextLetterDestination(int mover){
+  int nextL = 2 * mover;
+  int nextR = 2 * mover + 1;
+  
+  stepL1->moveTo(-semaphore[0][nextL]);
+  stepR1->moveTo(-semaphore[0][nextR]);
+  
+  stepL2->moveTo(-semaphore[1][nextL]);
+  stepR2->moveTo(-semaphore[1][nextR]);
+ 
+  stepL3->moveTo(-semaphore[2][nextL]);
+  stepR3->moveTo(-semaphore[2][nextR]);
+ 
+  stepL4->moveTo(-semaphore[3][nextL]);
+  stepR4->moveTo(-semaphore[3][nextR]);
+  
+  stepL5->moveTo(-semaphore[4][nextL]);
+  stepR5->moveTo(-semaphore[4][nextR]);
+
+  positionUpdate();
+}
+
+//move all of them together when the character arrays have been filled
+void positionUpdate(){
+  timer = millis();
+  while (letterLength > (millis() - timer)){
+    if ((stepL1 -> distanceToGo() != 0) || (stepR1-> distanceToGo() != 0)){stepL1->run(); stepR1->run();}
+    if ((stepL2 -> distanceToGo() != 0) || (stepR2-> distanceToGo() != 0)){stepL2->run(); stepR2->run();}
+    if ((stepL3 -> distanceToGo() != 0) || (stepR3-> distanceToGo() != 0)){stepL3->run(); stepR3->run();}
+    if ((stepL4 -> distanceToGo() != 0) || (stepR4-> distanceToGo() != 0)){stepL4->run(); stepR4->run();}
+    if ((stepL5 -> distanceToGo() != 0) || (stepR5-> distanceToGo() != 0)){stepL5->run(); stepR5->run();}
+  }
+}
+
+//clearing out all arrays
+void clearCharacters(){
+  for (int i = 0; i < numChars; i++){
+    receivedChars[i] = 0;  
+    receivedChars2[i] = 0;       
+    receivedChars3[i] = 0;    
+    receivedChars4[i] = 0;       
+    receivedChars5[i] = 0;
+  }
+
+  for (int i = 0; i < 5; i++){
+    for (int j = 0; j < 100; j++){
+      semaphore[i][j] = 0;
+    }
+  }
+}
+
+void receiveData() {
+    static boolean recvInProgress = false;
+    static int ndx = 0;
+    static char selector;
+    char rc;
+
+    char local[numChars];
+
+    while (Serial.available() > 0 && newData == false) {
+          rc = Serial.read();
+
+          //recalibrate the system
+          if (rc == '&'){
+            calibrateAll();
+            Serial.println("calibrated");            
+          }
+
+          if (rc == symbols[0][1])selector = 'a';
+          else if (rc == symbols[1][1])selector = 'b';
+          else if (rc == symbols[2][1])selector = 'c';          
+          else if (rc == symbols[3][1])selector = 'd';
+          else if (rc == symbols[4][1])selector = 'e';
+          
+          //Serial.println(rc);
+          if (selector == 'a'){
+            if (recvInProgress == true) {
+              if (rc != symbols[0][2]) {
+                  local[ndx] = rc;
+                  ndx++;
+                  if (ndx >= numChars) {
+                      ndx = numChars - 1;
+                  }
+              }
+              else {
+                local[ndx]= 0; // terminate the string
+                recvInProgress = false;
+                ndx = 0;
+                newData = true;
+                strcpy(receivedChars, local);
+              }
+            }
+          else if (rc == symbols[0][1]) {
+             recvInProgress = true;
+             selector = symbols[0][0];
+          }
+         }
+        
+         else if (selector == 'b'){
+          if (recvInProgress == true) {
+            if (rc != symbols[1][2]) {
+                local[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+              local[ndx]= 0; // terminate the string
+              recvInProgress = false;
+              ndx = 0;
+              newData = true;
+              strcpy(receivedChars2, local);
+              //Serial.println(receivedChars2);
+              newData = false;
+            }
+          }
+          else if (rc == symbols[1][1]) {
+             recvInProgress = true;
+          }
+        }
+         else if (selector == 'c'){
+          if (recvInProgress == true) {
+            if (rc != symbols[2][2]) {
+                local[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+              local[ndx]= 0; // terminate the string
+              recvInProgress = false;
+              ndx = 0;
+              newData = true;
+              strcpy(receivedChars3, local);
+              //Serial.println(receivedChars3);
+              newData = false;
+            }
+          }
+          else if (rc == symbols[2][1]) {
+             recvInProgress = true;
+          }
+        }
+         else if (selector == 'd'){
+          if (recvInProgress == true) {
+            if (rc != symbols[3][2]) {
+                local[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+              local[ndx]= 0; // terminate the string
+              recvInProgress = false;
+              ndx = 0;
+              newData = true;
+              strcpy(receivedChars4, local);
+              //Serial.println(receivedChars4);
+              newData = false;
+            }
+          }
+          else if (rc == symbols[3][1]) {
+             recvInProgress = true;
+          }
+        }
+        else if (selector == 'e'){
+          if (recvInProgress == true) {
+            if (rc != symbols[4][2]) {
+                local[ndx] = rc;
+                ndx++;
+                if (ndx >= numChars) {
+                    ndx = numChars - 1;
+                }
+            }
+            else {
+              local[ndx]= 0; // terminate the string
+              recvInProgress = false;
+              ndx = 0;
+              newData = true;
+              strcpy(receivedChars5, local);
+              //Serial.println(receivedChars5);
+              newData = false;
+            }
+          }
+          else if (rc == symbols[4][1]) {
+             recvInProgress = true;
+          }
+        }
+   }     
+}
+
+void establishContact() {
+    while (Serial.available() <= 0) {
+      Serial.println("waiting");   // send an initial string
+      delay(10);
+    }
+}
+
+void calibrateAll(){
+  calibration(stepL1, hallSensors[0]);
+  calibration(stepR1, hallSensors[1]);
+  calibration(stepL2, hallSensors[2]);
+  calibration(stepR2, hallSensors[3]);
+  calibration(stepL3, hallSensors[4]);
+  calibration(stepR3, hallSensors[5]);
+  calibration(stepL4, hallSensors[6]);
+  calibration(stepR4, hallSensors[7]);
+  calibration(stepL5, hallSensors[8]);
+  calibration(stepR5, hallSensors[9]); 
+  setupMotors();
+}
+
+void calibration(AccelStepper *motor, int hall){
+  int sensorReading;
+  sensorReading = digitalRead(hall);
+
+  while(true){
+     sensorReading = digitalRead(hall);
+     Serial.print(hall);
+     Serial.print(", ");
+     Serial.println(sensorReading);
+     if (sensorReading == 0){
+      break;
+     }
+     motor->runToNewPosition(motor->currentPosition()+10);
+  }
+  
+  motor->setCurrentPosition(0);
+  Serial.print(hall);
+  Serial.println(" is aligned"); 
+}
+
+void setupMotors(){
+  stepL1->setMaxSpeed(speedy);
+  stepL1->setAcceleration(accely);
+  stepL1->setSpeed(speedy);
+
+  stepR1->setMaxSpeed(speedy);
+  stepR1->setAcceleration(accely);
+  stepR1->setSpeed(speedy);
+
+  stepL2->setMaxSpeed(speedy);
+  stepL2->setAcceleration(accely);
+  stepL2->setSpeed(speedy);
+
+  stepR2->setMaxSpeed(speedy);
+  stepR2->setAcceleration(accely);
+  stepR2->setSpeed(speedy);
+
+  stepL3->setMaxSpeed(speedy);
+  stepL3->setAcceleration(accely);
+  stepL3->setSpeed(speedy);
+
+  stepR3->setMaxSpeed(speedy);
+  stepR3->setAcceleration(accely);
+  stepR3->setSpeed(speedy);
+  
+  stepL4->setMaxSpeed(speedy);
+  stepL4->setAcceleration(accely);
+  stepL4->setSpeed(speedy);
+
+  stepR4->setMaxSpeed(speedy);
+  stepR4->setAcceleration(accely);
+  stepR4->setSpeed(speedy);
+
+  stepL5->setMaxSpeed(speedy);
+  stepL5->setAcceleration(accely);
+  stepL5->setSpeed(speedy);
+
+  stepR5->setMaxSpeed(speedy);
+  stepR5->setAcceleration(accely);
+  stepR5->setSpeed(speedy);
+}
+
+/*********************************************
+ * 
+ *CODE GRAVEYARD DUM DUM DUM 
+ *
+ *OOOOOOH SPOOOKY
+ *
+
+} */
