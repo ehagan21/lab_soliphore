@@ -27,10 +27,10 @@ print('connected serial')
 headlines = []
 
 #Init
-news_key = data["api_key"]
-newsapi = NewsApiClient(api_key=news_key)
+#news_key = data["api_key"]
+#newsapi = NewsApiClient(api_key=news_key)
 
-top_headlines = newsapi.get_top_headlines(language='en', country ='us')
+#top_headlines = newsapi.get_top_headlines(language='en', country ='us')
 
 #load text file into python, save text in a list to be sent to raspberry pi
 def fileload(filename):
@@ -39,31 +39,25 @@ def fileload(filename):
     text_file.close()
     return lines
 
-def sanitize():
-    for item in top_headlines["articles"]:
-        xstring = item["title"].encode('utf-8')
-        hlist = re.sub("[^a-zA-Z ]+", "", xstring)
-        wrapper = textwrap.TextWrapper(width=50)
-        shorten = wrapper.wrap(text=hlist)
-        message = '[' + shorten[0].upper() + ']'
-        headlines.append(message)
-        print(message)
+#def sanitize():
+    #for item in top_headlines["articles"]:
+        #xstring = item["title"].encode('utf-8')
+        #hlist = re.sub("[^a-zA-Z ]+", "", xstring)
+        #wrapper = textwrap.TextWrapper(width=50)
+        #shorten = wrapper.wrap(text=hlist)
+        #message = '[' + shorten[0].upper() + ']'
+        #headlines.append(message)
+        #print(message)
 
 def exit_handler():
     print("closing application")
     ser.reset_output_buffer()
     ser.close()
 
-sanitize()
+#sanitize()
 
-#if (ser.in_waiting>0):
-#    inData = ser.readline()
-#    if (inData == 'waiting'):
-#       ser.write('A')
-#       print('connected')
-    #reset the Arduino here?
-
-#loading text files, remember to check start and end characters for documents
+#loading text files, remember to check start/end char and line
+#length for documents
 A1 = fileload(data["1A"])
 A2 = fileload(data["2A"])
 A3 = fileload(data["3A"])
@@ -75,7 +69,7 @@ B3 = fileload(data["3B"])
 B4 = fileload(data["4B"])
 B5 = fileload(data["5B"])
 
-#counters, this should be in a function and private/local but not working
+#counters, this should be in a function and private/local
 ap1 = 0
 ap2 = 0
 ap3 = 0
@@ -125,7 +119,7 @@ try:
                 print(A1[ap1])
 
                 print(B5[bp5])
-                print(B4[bp4])  #email?
+                print(B4[bp4])
                 print(B3[bp3])
                 print(B2[bp2])
                 print(B1[bp1])

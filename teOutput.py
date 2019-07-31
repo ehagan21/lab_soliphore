@@ -36,7 +36,7 @@ def runPage(currentPage):
 
     for line in allLines:
         cleanText = re.sub("[^a-zA-Z ]+"," ",line).upper()
-	wrapper = textwrap.TextWrapper(width=255)
+	wrapper = textwrap.TextWrapper(width=50)
         
         #wraps the text to be 256 characters long
         shortTexts = wrapper.wrap(text=cleanText)
